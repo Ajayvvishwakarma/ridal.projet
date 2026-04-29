@@ -1,0 +1,285 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard (Backend Connected)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #f3f4f6;
+            --sidebar-bg: #1e40af;
+            --sidebar-hover: #2563eb;
+            --primary: #3b82f6;
+            --card-bg: #ffffff;
+            --text-main: #f9fafb;
+            --text-dark: #1f2937;
+            --border: #e5e7eb;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Poppins", sans-serif; }
+        body { background: var(--bg-body); color: var(--text-dark); height: 100vh; overflow-x: hidden; }
+
+        /* --- LOADER --- */
+        #loader-screen {
+            position: fixed; left: 0; top: 0; width: 100%; height: 100%;
+            background: var(--sidebar-bg); z-index: 9999;
+            display: none; justify-content: center; align-items: center; flex-direction: column;
+        }
+        .spinner { width: 50px; height: 50px; border: 5px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: white; animation: spin 1s ease-in-out infinite; margin-bottom: 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-text { color: white; font-weight: 600; font-size: 16px; }
+
+        /* --- LOGIN --- */
+        #login-section {
+            height: 100vh; display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, #1e1b4b 0%, #4c1d95 100%); position: fixed; width: 100%; z-index: 1000;
+        }
+        .login-card {
+            background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(15px);
+            padding: 45px; border-radius: 20px; width: 350px; text-align: center; color: white;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .login-input {
+            width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.05); color: white;
+            outline: none;
+        }
+        .login-btn {
+            width: 100%; padding: 12px; margin-top: 20px;
+            background: linear-gradient(to right, #4f46e5, #6366f1); border: none; border-radius: 8px;
+            color: white; font-weight: bold; cursor: pointer;
+        }
+
+        /* --- LAYOUT --- */
+        #dashboard { display: none; opacity: 0; transition: opacity 0.5s ease; }
+        .sidebar {
+            width: 260px; background: var(--sidebar-bg); height: 100vh; position: fixed;
+            left: 0; top: 0; display: flex; flex-direction: column; color: var(--text-main);
+            z-index: 50; transition: 0.3s ease;
+        }
+        .logo-area { padding: 30px 20px; font-size: 22px; font-weight: 700; color: white; border-bottom: 1px solid rgba(255,255, 255, 0.1); }
+        .menu { padding: 20px 10px; flex: 1; }
+        .menu-item {
+            padding: 14px 20px; display: flex; align-items: center; gap: 12px;
+            cursor: pointer; transition: 0.3s; border-radius: 8px; margin-bottom: 5px;
+            color: #dbeafe; font-weight: 500;
+        }
+        .menu-item:hover, .menu-item.active { background: rgba(255,255,255,0.15); color: white; padding-left: 25px; }
+        
+        .main-content { margin-left: 260px; padding: 30px; transition: 0.3s ease; width: calc(100% - 260px); }
+        
+        /* --- HEADER --- */
+        .top-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .page-title h2 { font-size: 24px; font-weight: 600; }
+        
+        /* BUTTONS */
+        .mobile-menu-btn {
+            display: none; cursor: pointer; font-size: 24px; background: white; width: 40px; height: 40px;
+            border-radius: 8px; z-index: 100;
+        }
+
+        /* --- PAGES --- */
+        .page-card {
+            background: var(--card-bg); padding: 25px; border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid var(--border);
+        }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 25px; margin-bottom: 30px; }
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--text-dark); }
+        .stat-label { color: #64748b; font-size: 14px; }
+
+        /* --- TABLES --- */
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        .data-table th { text-align: left; padding: 15px; color: #64748b; font-weight: 600; border-bottom: 2px solid #f3f4f6; font-size: 13px; }
+        .data-table td { padding: 15px; border-bottom: 1px solid #f3f4f6; color: var(--text-dark); }
+        .table-responsive { overflow-x: auto; }
+        .badge { padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .badge-success { background: #dcfce7; color: #166534; }
+        .badge-pending { background: #fef9c3; color: #854d0e; }
+        .badge-inactive { background: #f3f4f6; color: #64748b; }
+
+        /* --- PROFILE PAGE --- */
+        .profile-layout { display: flex; gap: 30px; flex-wrap: wrap; }
+        .profile-avatar-box { flex: 1; min-width: 300px; text-align: center; }
+        .avatar-xl {
+            width: 120px; height: 120px; background: linear-gradient(135deg, var(--primary), var(--sidebar-hover));
+            border-radius: 50%; margin: 0 auto 20px; display: flex; justify-content: center; align-items: center;
+            color: white; font-size: 40px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .profile-info-box { flex: 2; min-width: 400px; }
+        .info-row { display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #f3f4f6; }
+        .info-label { color: #64748b; font-size: 14px; }
+        .info-value { font-weight: 600; color: var(--text-dark); font-size: 15px; }
+        
+        /* --- RESPONSIVE --- */
+        @media (max-width: 768px) {
+            .sidebar { left: -260px; }
+            .sidebar.active { left: 0; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
+            .main-content { margin-left: 0; width: 100%; padding: 15px; padding-top: 60px; }
+            .mobile-menu-btn { display: block; position: fixed; top: 15px; right: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- LOADING SCREEN -->
+    <div id="loader-screen">
+        <div class="spinner"></div>
+        <div class="loading-text">Connecting Database...</div>
+    </div>
+
+    <!-- LOGIN SECTION -->
+    <div id="login-section">
+        <div class="login-card">
+            <h2>Admin Login</h2>
+            <p style="color: #d1d5db; margin-bottom: 20px;">Secure Access</p>
+            <input type="text" id="username" class="login-input" placeholder="Username">
+            <input type="password" id="password" class="login-input" placeholder="password">
+            <button class="login-btn" onclick="login()">LOGIN</button>
+            <div id="msg" style="color: #fca5a5; margin-top: 15px; font-size: 13px;"></div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard">
+        <div class="mobile-menu-btn" onclick="toggleSidebar()">?</div>
+        
+        <div class="sidebar" id="sidebar">
+            <div class="logo-area">Ride N Repair</div>
+            <div class="menu">
+                <div class="menu-item active" onclick="showPage('overview', this)">Overview</div>
+                <div class="menu-item" onclick="showPage('customers', this)">Customers</div>
+                <div class="menu-item" onclick="showPage('orders', this)">Orders</div>
+                <div class="menu-item" onclick="showPage('profile', this)">My Profile</div>
+                <div class="menu-item" onclick="logout()" style="margin-top: 20px; color: #ef4444;">Logout</div>
+            </div>
+        </div>
+
+        <div class="main-content" id="main-content">
+            <!-- TOP HEADER -->
+            <div class="top-header">
+                <div class="header-left">
+                    <h2 id="page-title">Overview</h2>
+                </div>
+                <!-- Avatar Placeholder -->
+                <div style="width: 40px;"></div>
+            </div>
+
+            <!-- OVERVIEW -->
+            <div id="overview">
+                <div class="stats-grid">
+                    <div class="page-card"><div class="stat-label">Total Revenue</div><div class="stat-value" id="stat-revenue">Rs 0</div></div>
+                    <div class="page-card"><div class="stat-label">Total Orders</div><div class="stat-value" id="stat-orders">0</div></div>
+                    <div class="page-card"><div class="stat-label">Active Users</div><div class="stat-value" id="stat-users">0</div></div>
+                </div>
+            </div>
+
+            <!-- CUSTOMERS -->
+            <div id="customers" style="display:none;">
+                <div class="page-card">
+                    <h3>Customer List</h3>
+                    <div class="table-responsive">
+                        <table class="data-table" id="customer-table">
+                            <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Status</th></tr></thead>
+                            <tbody><tr><td colspan="5">Loading...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ORDERS -->
+            <div id="orders" style="display:none;">
+                <div class="page-card">
+                    <h3>Order List</h3>
+                    <div class="table-responsive">
+                        <table class="data-table" id="orders-table">
+                            <thead><tr><th>Order ID</th><th>Service</th><th>Status</th></tr></thead>
+                            <tbody><tr><td colspan="3">Loading...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PROFILE -->
+            <div id="profile" style="display:none;">
+                <div class="profile-layout">
+                    <div class="profile-avatar-box">
+                        <div class="avatar-xl">AD</div>
+                        <h3 style="margin-top: 15px;">Admin User</h3>
+                        <p style="color: #64748b;">Super Administrator</p>
+                    </div>
+                    <div class="profile-info-box page-card">
+                        <h3 style="margin-bottom: 20px; color: var(--primary);">Personal Details</h3>
+                        <div class="info-row"><div class="info-label">Full Name</div><div class="info-value">Admin User</div></div>
+                        <div class="info-row"><div class="info-label">Role</div><div class="info-value">Super Admin</div></div>
+                        <div class="info-row"><div class="info-label">Location</div><div class="info-value">New Delhi</div></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        function login() {
+            var u = document.getElementById('username').value;
+            var p = document.getElementById('password').value;
+            var m = document.getElementById('msg');
+
+            if (u === 'admin' && p === 'admin') {
+                // Show Loader
+                document.getElementById('loader-screen').style.display = 'flex';
+                
+                // Load Data
+                setTimeout(() => {
+                    // Simulate Connection
+                    document.getElementById('loader-screen').style.display = 'none';
+                    document.getElementById('login-section').style.display = 'none';
+                    document.getElementById('dashboard').style.display = 'block';
+                    setTimeout(() => {
+                        // Fade in Dashboard
+                        document.getElementById('dashboard').style.opacity = '1';
+                    }, 100);
+                }, 1000); 
+            } else {
+                m.innerText = 'Invalid Credentials';
+            }
+        }
+
+        function logout() {
+            location.reload();
+        }
+
+        function showPage(id, el) {
+            // Hide all
+            var pages = ['overview', 'customers', 'orders', 'profile'];
+            pages.forEach(p => {
+                var elPage = document.getElementById(p);
+                elPage.style.display = 'none';
+                elPage.style.opacity = '0';
+            });
+            
+            // Show selected
+            var activePage = document.getElementById(id);
+            activePage.style.display = 'block';
+            setTimeout(() => activePage.style.opacity = '1', 50);
+            
+            // Title Update
+            document.getElementById('page-title').innerText = id.charAt(0).toUpperCase() + id.slice(1);
+
+            // Menu Active State
+            document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+            if(el) el.classList.add('active');
+
+            // Mobile Sidebar Close
+            if(window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+        }
+    </script>
+</body>
+</html>
+
